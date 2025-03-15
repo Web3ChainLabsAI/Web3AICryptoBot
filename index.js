@@ -3,6 +3,15 @@ const OpenAI = require('openai');
 const axios = require('axios');
 
 const app = express();
+
+// Добавяне на CORS
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*'); // Разрешава всички домейни
+    res.header('Access-Control-Allow-Methods', 'GET, POST');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    next();
+});
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 app.get('/api/prices', async (req, res) => {

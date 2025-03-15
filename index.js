@@ -41,7 +41,7 @@ app.get('/api/chat', async (req, res) => {
         const completion = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
             messages: [{ role: 'user', content: message }],
-            max_tokens: 150
+            max_tokens: 300 // Променено от 150 на 300
         });
         res.json({ response: completion.choices[0].message.content.trim() });
     } catch (error) {

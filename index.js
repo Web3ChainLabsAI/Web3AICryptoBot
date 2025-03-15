@@ -4,9 +4,9 @@ const axios = require('axios');
 
 const app = express();
 
-// Добавяне на CORS
+// CORS поддръжка
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*'); // Разрешава всички домейни
+    res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST');
     res.header('Access-Control-Allow-Headers', 'Content-Type');
     next();
@@ -40,8 +40,11 @@ app.get('/api/chat', async (req, res) => {
     try {
         const completion = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
-            messages: [{ role: 'user', content: message }],
-            max_tokens: 300 // Променено от 150 на 300
+            messages: [
+                { role: 'system', content: 'You are a helpful AI assistant. Respond in the same language as the user\'s message.' },
+                { role: 'user', content: message }
+            ],
+            max_tokens: 300
         });
         res.json({ response: completion.choices[0].message.content.trim() });
     } catch (error) {

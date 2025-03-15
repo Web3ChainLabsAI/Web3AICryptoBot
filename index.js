@@ -4,7 +4,6 @@ const axios = require('axios');
 
 const app = express();
 
-// CORS поддръжка
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST');
@@ -37,12 +36,32 @@ app.get('/api/forecast', async (req, res) => {
 
 app.get('/api/chat', async (req, res) => {
     const message = req.query.message || "Hello!";
+    const type = req.query.type || "general"; // Тип заявка: general, smartcontract, business, cv, other
+
+    let prompt = "";
+    switch (type) {
+        case "smartcontract":
+            prompt = "Provide a detailed explanation or example of a smart contract based on this input: ";
+            break;
+        case "business":
+            prompt = "Generate a business idea or advice based on this input: ";
+            break;
+        case "cv":
+            prompt = "Create a CV section or provide CV writing advice based on this input: ";
+            break;
+        case "other":
+            prompt = "Provide information or assistance on this topic: ";
+            break;
+        default:
+            prompt = "Respond as a helpful assistant: ";
+    }
+
     try {
         const completion = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
             messages: [
                 { role: 'system', content: 'You are a helpful AI assistant. Respond in the same language as the user\'s message.' },
-                { role: 'user', content: message }
+                { role: 'user', content: `${prompt}${message}` }
             ],
             max_tokens: 300
         });

@@ -45,12 +45,72 @@
 
     <script>
         const RENDER_URL = "https://web3-aicrypto-bot-free.onrender.com";
+        const BINANCE_API_URL = "https://api.binance.com";
+        const COINGECKO_API_URL = "https://api.coingecko.com/api/v3";
+
+        async function fetchBinancePrice(symbol) {
+            try {
+                const response = await fetch(`${BINANCE_API_URL}/api/v3/ticker/price?symbol=${symbol}USDT`);
+                if (!response.ok) throw new Error(`Failed to fetch ${symbol}`);
+                const data = await response.json();
+                return parseFloat(data.price).toFixed(4) + " USDT";
+            } catch (error) {
+                console.error("Binance Error:", error.message);
+                return "N/A";
+            }
+        }
+
+        async function fetchCoinGeckoPrice(coinId) {
+            try {
+                const response = await fetch(`${COINGECKO_API_URL}/simple/price?ids=${coinId}&vs_currencies=usd`);
+                if (!response.ok) throw new Error(`Failed to fetch ${coinId}`);
+                const data = await response.json();
+                return parseFloat(data[coinId].usd).toFixed(4) + " USD";
+            } catch (error) {
+                console.error("CoinGecko Error:", error.message);
+                return "N/A";
+            }
+        }
+
+        async function fetchBinancePrices() {
+            try {
+                const response = await fetch(`${BINANCE_API_URL}/api/v3/ticker/price?symbols=["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","ADAUSDT","XMRUSDT","DOTUSDT"]`);
+                if (!response.ok) throw new Error('Failed to fetch prices');
+                const data = await response.json();
+                return data.map(item => ({
+                    symbol: item.symbol.replace("USDT", ""),
+                    price: parseFloat(item.price).toFixed(4) + " USDT"
+                }));
+            } catch (error) {
+                console.error("Binance API Error:", error.message);
+                return null;
+            }
+        }
+
+        async function getCryptoPrice(coinName) {
+            const cryptoMap = {
+                "биткойн": "bitcoin", "bitcoin": "bitcoin", "btc": "bitcoin",
+                "етериум": "ethereum", "ethereum": "ethereum", "eth": "ethereum",
+                "солана": "solana", "sol": "solana",
+                "бинанс": "binancecoin", "bnb": "binancecoin",
+                "кардано": "cardano", "ada": "cardano",
+                "монеро": "monero", "xmr": "monero",
+                "полкадот": "polkadot", "dot": "polkadot",
+                "риппъл": "ripple", "ripple": "ripple", "xrp": "ripple",
+                "догекойн": "dogecoin", "dogecoin": "dogecoin", "doge": "dogecoin",
+                "шиба": "shiba-inu", "shiba": "shiba-inu", "shib": "shiba-inu"
+            };
+            const coinId = cryptoMap[coinName.toLowerCase()] || coinName.toLowerCase();
+            const binancePrice = await fetchBinancePrice(coinId.toUpperCase());
+            const coingeckoPrice = await fetchCoinGeckoPrice(coinId);
+            return { binance: binancePrice, coingecko: coingeckoPrice };
+        }
 
         async function updateCryptoInfo() {
             try {
-                const pricesResponse = await fetch(`${RENDER_URL}/api/prices`);
-                const pricesData = await pricesResponse.json();
-                document.getElementById('prices').textContent = pricesData.prices;
+                const pricesResponse = await fetchBinancePrices();
+                const pricesData = pricesResponse ? pricesResponse.map(p => `${p.symbol}: ${p.price}`).join(", ") : "Error fetching prices";
+                document.getElementById('prices').textContent = pricesData;
 
                 const forecastResponse = await fetch(`${RENDER_URL}/api/forecast`);
                 const forecastData = await forecastResponse.json();
@@ -72,11 +132,29 @@
                 messagesDiv.innerHTML += `<p><strong>You:</strong> ${userMessage}</p>`;
                 input.value = '';
                 try {
-                    const response = await fetch(`${RENDER_URL}/api/chat?message=${encodeURIComponent(userMessage)}`);
+                    const prices = await fetchBinancePrices();
+                    const priceData = prices ? prices.map(p => `${p.symbol}: ${p.price}`).join(", ") : "No current prices from Binance";
+                    const btcCoinGecko = await fetchCoinGeckoPrice("bitcoin");
+                    const ethCoinGecko = await fetchCoinGeckoPrice("ethereum");
+                    const xmrCoinGecko = await fetchCoinGeckoPrice("monero");
+                    const dotCoinGecko = await fetchCoinGeckoPrice("polkadot");
+                    const coinGeckoData = `BTC: ${btcCoinGecko}, ETH: ${ethCoinGecko}, XMR: ${xmrCoinGecko}, DOT: ${dotCoinGecko}`;
+
+                    let prompt = `Answer the following question in the same language as the question, using these current prices if relevant: Binance: ${priceData}, CoinGecko: ${coinGeckoData}. Question: ${userMessage}`;
+
+                    const priceMatch = userMessage.match(/(цена|price).*?(на|of)\s+([а-яА-Яa-zA-Z]+)/i);
+                    if (priceMatch) {
+                        const coinName = priceMatch[3];
+                        const coinPrices = await getCryptoPrice(coinName);
+                        prompt = `Answer the following question in the same language as the question, using these current prices: Binance: ${coinPrices.binance}, CoinGecko: ${coinPrices.coingecko}. For other cryptocurrencies, use: Binance: ${priceData}, CoinGecko: ${coinGeckoData}. Question: ${userMessage}`;
+                    }
+
+                    const response = await fetch(`${RENDER_URL}/api/chat?message=${encodeURIComponent(prompt)}`);
+                    if (!response.ok) throw new Error('Server not responding');
                     const data = await response.json();
                     messagesDiv.innerHTML += `<p><strong>Bot:</strong> ${data.response}</p>`;
                 } catch (error) {
-                    messagesDiv.innerHTML += `<p><strong>Bot:</strong> Error</p>`;
+                    messagesDiv.innerHTML += `<p><strong>Bot:</strong> Error: ${error.message}</p>`;
                 }
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
             }

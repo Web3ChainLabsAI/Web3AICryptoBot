@@ -79,7 +79,7 @@
 <script>
     const RENDER_URL = "https://web3-aicrypto-bot-free.onrender.com";
     const BINANCE_API_URL = "https://api.binance.com";
-    const COINGECKO_API_URL = "https://api.coingecko.com/api/v3"; // Добавяме CoinGecko URL
+    const COINGECKO_API_URL = "https://api.coingecko.com/api/v3";
     const messagesDiv = document.getElementById('chat-messages');
     const input = document.getElementById('chat-input');
     const sendButton = document.getElementById('send-button');
@@ -164,15 +164,6 @@
             messagesDiv.innerHTML += `<p><strong>You:</strong> ${userMessage}</p>`;
             input.value = '';
 
-            // Проверка за прости поздрави
-            const greetings = ['халло', 'здравей', 'hello', 'hi', 'здрасти'];
-            if (greetings.includes(userMessage.toLowerCase())) {
-                messagesDiv.innerHTML += `<p><strong>Bot:</strong> Здравей! Как мога да ти помогна днес?</p>`;
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                await updateCharts();
-                return;
-            }
-
             try {
                 // Извличане на данни от Binance
                 const binanceResponse = await fetch(`${BINANCE_API_URL}/api/v3/ticker/price?symbols=["BTCUSDT","ETHUSDT","BNBUSDT","ADAUSDT","SOLUSDT"]`);
@@ -184,8 +175,8 @@
                 const coingeckoData = await coingeckoResponse.json();
                 const coingeckoPrices = `BTC: ${coingeckoData.bitcoin.usd} USD, ETH: ${coingeckoData.ethereum.usd} USD, BNB: ${coingeckoData.binancecoin.usd} USD, ADA: ${coingeckoData.cardano.usd} USD, SOL: ${coingeckoData.solana.usd} USD`;
 
-                // Създаване на промпт за OpenAI чрез Render
-                const prompt = `Answer the following question naturally and conversationally in the same language as the question, using these current cryptocurrency prices if relevant: Binance: ${binancePrices}, CoinGecko: ${coingeckoPrices}. Question: ${userMessage}`;
+                // Промпт за OpenAI чрез Render – инструкция за нормален, естествен отговор
+                const prompt = `Answer the following question naturally and conversationally in the same language as the question. Only include cryptocurrency prices from Binance (${binancePrices}) and CoinGecko (${coingeckoPrices}) if the question explicitly asks for them or is clearly about cryptocurrencies. Otherwise, respond as a friendly, helpful AI without mentioning prices or crypto unless relevant. Question: ${userMessage}`;
 
                 const response = await fetch(`${RENDER_URL}/api/chat?message=${encodeURIComponent(prompt)}&type=ai-business`);
                 if (!response.ok) throw new Error('Server not responding');

@@ -2,7 +2,8 @@ const express = require('express');
 const OpenAI = require('openai');
 const axios = require('axios');
 const PDFDocument = require('pdfkit');
-const path = require('path'); // За работа с пътища до файлове
+const path = require('path');
+const { createHmac } = require('crypto');
 
 const app = express();
 
@@ -14,6 +15,36 @@ app.use((req, res, next) => {
 });
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Binance API настройки
+const BINANCE_API_KEY = process.env.BINANCE_API_KEY; // Взема от environment variables
+const BINANCE_SECRET_KEY = process.env.BINANCE_SECRET_KEY; // Взема от environment variables
+const BINANCE_API_URL = 'https://api.binance.com'; // Остава както е
+
+// Функция за генериране на Binance HMAC сигнатура
+function generateSignature(queryString) {
+    return createHmac('sha256', BINANCE_SECRET_KEY)
+        .update(queryString)
+        .digest('hex');
+}
+
+// Функция за вземане на реалновременни цени от Binance
+async function getBinancePrices() {
+    try {
+        const response = await axios.get(`${BINANCE_API_URL}/api/v3/ticker/price`, {
+            params: {
+                symbols: JSON.stringify(["BTCUSDT", "ETHUSDT", "BNBUSDT"])
+            },
+            headers: {
+                'X-MBX-APIKEY': BINANCE_API_KEY
+            }
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Binance API error:', error);
+        return null;
+    }
+}
 
 app.get('/api/prices', async (req, res) => {
     try {
@@ -55,18 +86,28 @@ app.get('/api/chat', async (req, res) => {
             prompt = "Provide information or assistance on this topic: ";
             break;
         case "ai-business":
-            prompt = "Provide a business analysis based on this input: ";
+            prompt = "Provide a business analysis based on this input, incorporating real-time Binance market data: ";
             break;
         default:
             prompt = "Respond as a helpful assistant: ";
     }
 
     try {
+        let binanceData = '';
+        if (type === "ai-business") {
+            const prices = await getBinancePrices();
+            if (prices) {
+                binanceData = `Current Binance prices: ${prices.map(p => `${p.symbol}: $${p.price}`).join(', ')}. `;
+            } else {
+                binanceData = 'Unable to fetch Binance data at this time. ';
+            }
+        }
+
         const completion = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
             messages: [
                 { role: 'system', content: 'You are a helpful AI assistant. Respond in the same language as the user\'s message.' },
-                { role: 'user', content: `${prompt}${message}` }
+                { role: 'user', content: `${prompt}${message}\n${binanceData}` }
             ],
             max_tokens: 300
         });
@@ -80,14 +121,12 @@ app.get('/api/generate-pdf', (req, res) => {
     const content = decodeURIComponent(req.query.content || "No content provided");
     const doc = new PDFDocument({ bufferPages: true });
 
-    // Регистрираме шрифта DejaVuSans
     doc.registerFont('DejaVuSans', path.join(__dirname, 'fonts', 'DejaVuSans.ttf'));
 
     res.setHeader('Content-disposition', 'attachment; filename=Business_Report.pdf');
     res.setHeader('Content-type', 'application/pdf');
     doc.pipe(res);
 
-    // Използваме DejaVuSans за кирилица
     doc.font('DejaVuSans').fontSize(16).text('AI Business Report', { align: 'center' });
     doc.moveDown();
     doc.font('DejaVuSans').fontSize(12).text(content, { align: 'left' });

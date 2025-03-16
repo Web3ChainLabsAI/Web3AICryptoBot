@@ -131,6 +131,15 @@
                 const userMessage = input.value;
                 messagesDiv.innerHTML += `<p><strong>You:</strong> ${userMessage}</p>`;
                 input.value = '';
+
+                // Проверка за прости поздрави
+                const greetings = ['халло', 'здравей', 'hello', 'hi', 'здрасти'];
+                if (greetings.includes(userMessage.toLowerCase())) {
+                    messagesDiv.innerHTML += `<p><strong>Bot:</strong> Здравей! Как мога да ти помогна днес?</p>`;
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                    return; // Спираме по-нататъшното изпълнение
+                }
+
                 try {
                     const prices = await fetchBinancePrices();
                     const priceData = prices ? prices.map(p => `${p.symbol}: ${p.price}`).join(", ") : "No current prices from Binance";

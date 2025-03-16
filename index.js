@@ -2,6 +2,7 @@ const express = require('express');
 const OpenAI = require('openai');
 const axios = require('axios');
 const PDFDocument = require('pdfkit');
+const path = require('path'); // За работа с пътища до файлове
 
 const app = express();
 
@@ -76,14 +77,21 @@ app.get('/api/chat', async (req, res) => {
 });
 
 app.get('/api/generate-pdf', (req, res) => {
-    const content = decodeURIComponent(req.query.content || "No content provided"); // Декодираме URL параметъра
-    const doc = new PDFDocument({ font: 'Helvetica' }); // Изрично задаваме шрифт с UTF-8 поддръжка
+    const content = decodeURIComponent(req.query.content || "No content provided");
+    const doc = new PDFDocument({ bufferPages: true });
+
+    // Регистрираме шрифта DejaVuSans
+    doc.registerFont('DejaVuSans', path.join(__dirname, 'fonts', 'DejaVuSans.ttf'));
+
     res.setHeader('Content-disposition', 'attachment; filename=Business_Report.pdf');
     res.setHeader('Content-type', 'application/pdf');
     doc.pipe(res);
-    doc.fontSize(16).text('AI Business Report', { align: 'center' });
+
+    // Използваме DejaVuSans за кирилица
+    doc.font('DejaVuSans').fontSize(16).text('AI Business Report', { align: 'center' });
     doc.moveDown();
-    doc.fontSize(12).text(content, { align: 'left', encoding: 'utf8' }); // Указваме UTF-8 енкодинг
+    doc.font('DejaVuSans').fontSize(12).text(content, { align: 'left' });
+
     doc.end();
 });
 

@@ -1,7 +1,7 @@
 const express = require('express');
 const OpenAI = require('openai');
 const axios = require('axios');
-const PDFDocument = require('pdfkit'); // Добавяме pdfkit
+const PDFDocument = require('pdfkit');
 
 const app = express();
 
@@ -37,7 +37,7 @@ app.get('/api/forecast', async (req, res) => {
 
 app.get('/api/chat', async (req, res) => {
     const message = req.query.message || "Hello!";
-    const type = req.query.type || "general"; // Тип заявка: general, smartcontract, business, cv, other
+    const type = req.query.type || "general";
 
     let prompt = "";
     switch (type) {
@@ -53,7 +53,7 @@ app.get('/api/chat', async (req, res) => {
         case "other":
             prompt = "Provide information or assistance on this topic: ";
             break;
-        case "ai-business": // Поддръжка за бизнес анализи
+        case "ai-business":
             prompt = "Provide a business analysis based on this input: ";
             break;
         default:
@@ -76,14 +76,14 @@ app.get('/api/chat', async (req, res) => {
 });
 
 app.get('/api/generate-pdf', (req, res) => {
-    const content = req.query.content || "No content provided";
-    const doc = new PDFDocument();
+    const content = decodeURIComponent(req.query.content || "No content provided"); // Декодираме URL параметъра
+    const doc = new PDFDocument({ font: 'Helvetica' }); // Изрично задаваме шрифт с UTF-8 поддръжка
     res.setHeader('Content-disposition', 'attachment; filename=Business_Report.pdf');
     res.setHeader('Content-type', 'application/pdf');
     doc.pipe(res);
     doc.fontSize(16).text('AI Business Report', { align: 'center' });
     doc.moveDown();
-    doc.fontSize(12).text(content, { align: 'left' });
+    doc.fontSize(12).text(content, { align: 'left', encoding: 'utf8' }); // Указваме UTF-8 енкодинг
     doc.end();
 });
 
